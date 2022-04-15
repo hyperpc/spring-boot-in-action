@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oops!</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/styles/style.css}"/>
+</head>
+<body>
+    <div class="errorPage">
+        <span class="oops">Oops!</span><br/>
+        <img th:src="@{/images/404.png}" alt="404 Page Not Found" />
+        <p>
+            There seems to be a problem with the page you requested
+            (<span th:text="${path}">/readlist</span>).
+        </p>
+        <p th:text="${'Details: '+message}"></p>
+    </div>
+</body>
+</html>
