@@ -55,7 +55,7 @@
 
 > 将spring-boot/bin目录，设置到系统环境变量PATH  
 > SPRING_HOME: D:\spring-2.6.6  
-> PATH: %SPRING_HOME%\bin
+> PATH: %SPRING_HOME%\bin  
 > spring --version  
 > spring help  
 > spring help init  

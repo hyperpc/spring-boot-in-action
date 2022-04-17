@@ -1,0 +1,5 @@
+/ch06_Grails/grails_app/readingList/bin/default/.gitignore
+/ch06_Grails/myApp/.mvn/wrapper/maven-wrapper.properties
+/ch06_Grails/myApp/mvnw
+/ch06_Grails/myApp/mvnw.cmd
+/ch06_Grails/.vscode/settings.json
