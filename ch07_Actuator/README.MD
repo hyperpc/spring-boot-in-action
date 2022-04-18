@@ -2,7 +2,7 @@
 
 ## 端点
 
-在Spring Boot的众多Starter POMs中有一个特殊的模块：spring-boot-starter-actuator。它是一个用于暴露自身信息的模块，主要作用是用于监控与管理，以了解应用程序运行时的内部状况  
+在Spring Boot的众多Starter POMs中有一个特殊的模块：spring-boot-starter-actuator。它是一个用于暴露自身信息的模块，主要用于监控与管理，以了解应用程序运行时的内部状况  
 
 引入依赖：
 
@@ -148,3 +148,112 @@ Actuator端点可以MBean的形式发布，以JMX查看和管理
 Actuator端点发布在org.springframework.boot域下，通过JConsole查看请求的映射端点  
 
 ## 定制Actuator
+
+### 修改端点ID
+
+> endpoints.shutdown.id=kill  
+
+### 启用和禁用端点
+
+> endpoints.enabled=false  
+> endpoints.metrics.enabled=true  
+
+### 添加自定义度量信息
+
+Actuator会自动配置CounterService和GaugeService类的Bean  
+Spring Boot已提供二者的实现。  
+根据业务需求，可以将两个Bean的实例注入对应的Controller里  
+对于复杂一点的度量值，可以实现PublicMetrics接口，重写metrics()方法，以提供自己所需的度量值  
+
+### 创建自定义跟踪仓库
+
+默认地，/trace端点报告的跟踪信息，在内存仓库里，最多存储100条  
+为了提高存储容量，可以在ActuatorConfig类里声明自己的InMemoryTraceRepository Bean。  
+如果信息巨大，想要永久保存，可以实现Spring Boot的TraceRepository接口  
+
+- List&lt;Trace&gt; findAll()查找所有存储的Trace对象  
+- void add(Map&lt;String, Object&gt; traceInfo)保存一个Trace，包含跟踪信息的Map对象  
+
+通过引入以下依赖，可以存入MongoDB  
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-bbot-starter-data-mongodb</artifactId>
+</dependency>
+```
+
+然后，在业务代码中，通过MongoOperations来对信息进行操作  
+
+### 插入自定义健康指示器
+
+声明一个AmazonHealth类，继承HealthIndicator，并重写health()方法  
+在重写的方法中，通过Spring Boot的RestTemplate，向Amazon的url发起一个GET请求  
+如果成功则返回一个“UP”状态: return Health.up().build()  
+否则，返回一个“DOWN”状态：return Health.down().build()  
+
+还可以添加一些异常信息：return Health.down().withDetail("reason", e.getMessage()).build();  
+其中，.withDetail()支持多次调用  
+
+## 保护Actuator端点
+
+Spring Security可以保护安全相关的端点  
+
+在SecurityConfig.java的第一个配置HttpSecurity的configure方法中，设置仅限ADMIN权限的用户访问/shutdown端点  
+在第二个授权管理的configure方法中，添加角色为ADMIN和READER，以及密码  
+
+```java
+@Configuration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+  @Autowired
+  private ReaderRepository readerRepository;
+  
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+    http
+      .authorizeRequests()
+        .antMatchers("/").access("hasRole('READER')")
+        .antMatchers("/mgmt/**").access("hasRole('ADMIN')")
+        .antMatchers("/**").permitAll()
+      .and()
+      .formLogin()
+        .loginPage("/login")
+        .failureUrl("/login?error=true");
+  }
+  
+  @Override
+  protected void configure(
+              AuthenticationManagerBuilder auth) throws Exception {
+    auth
+      .userDetailsService(new UserDetailsService() {
+        @Override
+        public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException {
+          UserDetails user = readerRepository.findOne(username);
+          if (user != null) {
+            return user;
+          }
+          throw new UsernameNotFoundException("User '" + username + "' not found.");
+        }
+      })
+
+
+      .and()
+      .inMemoryAuthentication()
+
+        .withUser("manager").password("s3cr3t").roles("ADMIN","READER");
+
+  }
+}
+```
+
+在application.properties配置文件中，添加如下配置，可以为所有端点添加路径前缀，已实现分组管理  
+
+```text
+management.context-path=/mgmt
+```
+
+然后，在访问端点时，如下所示，才会收到响应信息：
+
+> /mgmt/metrics  
